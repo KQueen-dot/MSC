@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desglosando tu Asistente de Voz (Interactivo)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0f172a',
+                        card: '#1e293b',
+                        accent: '#38bdf8',
+                        code: '#282c34',
+                        pythonKW: '#c678dd', 
+                        pythonStr: '#98c379',
+                        pythonFunc: '#61afef',
+                        pythonComment: '#5c6370'
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'pulse-glow': 'pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'fade-in': 'fadeIn 0.2s ease-out forwards',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        },
+                        'pulse-glow': {
+                            '0%, 100%': { opacity: 1, boxShadow: '0 0 20px #38bdf8' },
+                            '50%': { opacity: .5, boxShadow: '0 0 5px #38bdf8' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: 0, transform: 'translateY(5px)' },
+                            '100%': { opacity: 1, transform: 'translateY(0)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #38bdf8;
+            border-radius: 5px;
+        }
+
+        .code-block {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background-color: #282c34;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease-out;
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .gradient-text {
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .interactive-token {
+            cursor: help;
+            border-bottom: 1px dotted rgba(255, 255, 255, 0.4);
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .interactive-token:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid #38bdf8;
+            border-radius: 3px;
+        }
+
+        #code-tooltip {
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="code-tooltip" class="fixed opacity-0 z-50 bg-slate-900 border border-slate-700 shadow-2xl rounded-lg p-4 max-w-xs transform scale-95 hidden pointer-events-none">
+        <h4 id="tooltip-title" class="text-accent font-bold text-lg mb-1 border-b border-slate-700 pb-1">Title</h4>
+        <p id="tooltip-desc" class="text-slate-300 text-sm leading-relaxed">Description goes here.</p>
+        <div class="mt-2 text-xs text-slate-500 font-mono bg-black/20 p-1 rounded inline-block">Tipo: <span id="tooltip-type">Función</span></div>
+    </div>
+
+    <header class="min-h-screen flex flex-col justify-center items-center text-center relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10">
+            <div class="absolute top-10 left-10 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float"></div>
+            <div class="absolute bottom-10 right-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" style="animation-delay: 2s;"></div>
+        </div>
+
+        <div class="z-10 px-4">
+            <div class="mb-6 inline-block p-4 rounded-full bg-slate-800 border border-slate-700 animate-float">
+                <i class="fas fa-microphone-alt text-4xl text-accent"></i>
+            </div>
+            <h1 class="text-5xl md:text-7xl font-bold mb-4">Tu Primer <span class="gradient-text">Asistente de Voz</span></h1>
+            <p class="text-xl md:text-2xl text-slate-400 max-w-2xl mx-auto">
+                Desglosando la magia de Python. <br>
+                <span class="text-sm text-accent bg-accent/10 px-3 py-1 rounded-full mt-2 inline-block"><i class="fas fa-mouse-pointer mr-2"></i>Pasa el mouse sobre el código para aprender</span>
+            </p>
+            <a href="#start" class="mt-10 inline-block px-8 py-3 rounded-full bg-accent text-dark font-bold hover:bg-white transition-colors duration-300 shadow-lg shadow-blue-500/50">
+                Comenzar el Viaje <i class="fas fa-arrow-down ml-2"></i>
+            </a>
+        </div>
+    </header>
+
+    <main id="start" class="container mx-auto px-4 py-20">
+
+        <section class="mb-24 reveal">
+            <div class="glass p-8 rounded-2xl border-l-4 border-accent">
+                <h2 class="text-3xl font-bold mb-4 text-white">¿Qué hace este código?</h2>
+                <p class="text-slate-300 text-lg">
+                    Este programa es un <strong>mayordomo digital</strong>. Escucha lo que dices a través de tu micrófono, entiende si mencionaste una marca famosa (como Amazon o Spotify) y abre automáticamente el navegador web para buscar lo que tú quieras en ese sitio.
+                </p>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-24 items-center reveal">
+            <div>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="bg-blue-900 text-blue-200 px-3 py-1 rounded-full text-sm font-mono">Paso 1</span>
+                    <h3 class="text-2xl font-bold">Las Herramientas (Imports)</h3>
+                </div>
+
+                    <div class="bg-slate-800 p-5 rounded-xl hover:bg-slate-750 transition duration-300 border border-slate-700">
+                        <div class="flex items-start gap-4">
+                            <div class="bg-green-500/20 p-3 rounded-lg text-green-400">
+                                <i class="fas fa-seedling text-xl"></i>
+                            </div>
+                            <div class="bg-purple-500/20 p-3 rounded-lg text-purple-400">
+                                <i class="fas fa-code text-xl"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-white mb-1">Para Empezar</h4>
+                                <p class="text-slate-400 text-sm">
+                                    Antes de construir una casa, necesitas traer los materiales. Pasa el cursor sobre <code>import</code> o las librerías para ver qué hacen exactamente.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block p-6 text-sm shadow-2xl relative group">
+                <div class="absolute top-2 right-2 text-xs text-slate-500">Python</div>
+                <pre><code class="text-slate-300">
+<span class="text-pythonKW interactive-token" data-term="import">import</span> <span class="interactive-token" data-term="speech_recognition">speech_recognition</span> <span class="text-pythonKW interactive-token" data-term="as">as</span> <span class="interactive-token" data-term="sr">sr</span>
+<span class="text-pythonKW interactive-token" data-term="import">import</span> <span class="interactive-token" data-term="webbrowser">webbrowser</span>
+<span class="text-pythonKW interactive-token" data-term="import">import</span> <span class="interactive-token" data-term="pyttsx3">pyttsx3</span>
+                </code></pre>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-24 items-center reveal lg:flex-row-reverse">
+            <div class="code-block p-6 text-sm shadow-2xl relative order-2 lg:order-1">
+                <pre><code class="text-slate-300">
+<span class="interactive-token" data-term="recognizer">recognizer</span> = <span class="interactive-token" data-term="sr">sr</span>.<span class="interactive-token" data-term="Recognizer">Recognizer</span>()
+
+<span class="interactive-token" data-term="engine">engine</span> = <span class="interactive-token" data-term="pyttsx3">pyttsx3</span>.<span class="interactive-token" data-term="init">init</span>()
+
+<span class="text-pythonFunc interactive-token" data-term="print">print</span>(<span class="text-pythonStr">"""Busqueda iniciada..."""</span>)
+                </code></pre>
+            </div>
+
+            <div class="order-1 lg:order-2">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="bg-blue-900 text-blue-200 px-3 py-1 rounded-full text-sm font-mono">Paso 2</span>
+                    <h3 class="text-2xl font-bold">Encendiendo Motores</h3>
+                </div>
+                
+                <div class="space-y-4">
+                    <p class="text-slate-300">
+                        Aquí creamos los objetos que harán el trabajo sucio. Pasa el mouse sobre <code>Recognizer</code> o <code>engine</code>.
+                    </p>
+                    <ul class="space-y-3">
+                        <li class="flex items-start gap-3">
+                            <i class="fas fa-check-circle text-accent mt-1"></i>
+                            <span class="text-slate-400"><strong>El Reconocedor:</strong> Prepara el sistema para analizar ondas de audio.</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <i class="fas fa-check-circle text-accent mt-1"></i>
+                            <span class="text-slate-400"><strong>El Motor (Engine):</strong> Inicializa la voz robótica que nos hablará de vuelta.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-24 reveal">
+            <div class="text-center mb-10">
+                <span class="bg-accent text-dark px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider">El Núcleo</span>
+                <h3 class="text-4xl font-bold mt-4">La Función <code class="text-accent">talk()</code></h3>
+            </div>
+
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                <div class="xl:col-span-2 code-block p-6 text-sm shadow-2xl">
+                    <pre><code class="text-slate-300">
+<span class="text-pythonKW interactive-token" data-term="def">def</span> <span class="text-pythonFunc interactive-token" data-term="talk">talk</span>():
+    <span class="interactive-token" data-term="mic">mic</span> = <span class="interactive-token" data-term="sr">sr</span>.<span class="interactive-token" data-term="Microphone">Microphone</span>()
+    <span class="text-pythonKW interactive-token" data-term="while">while</span> <span class="text-pythonKW interactive-token" data-term="True">True</span>:
+        <span class="text-pythonKW interactive-token" data-term="with">with</span> <span class="interactive-token" data-term="mic">mic</span> <span class="text-pythonKW interactive-token" data-term="as">as</span> <span class="interactive-token" data-term="source">source</span>:
+            <span class="interactive-token" data-term="audio">audio</span> = <span class="interactive-token" data-term="recognizer">recognizer</span>.<span class="interactive-token" data-term="listen">listen</span>(<span class="interactive-token" data-term="source">source</span>)
+
+        <span class="text-pythonKW interactive-token" data-term="try">try</span>:
+            <span class="interactive-token" data-term="text_var">text</span> = <span class="interactive-token" data-term="recognizer">recognizer</span>.<span class="interactive-token" data-term="recognize_google">recognize_google</span>(<span class="interactive-token" data-term="audio">audio</span>, language=<span class="text-pythonStr">'Es'</span>)
+            <span class="text-pythonFunc interactive-token" data-term="print">print</span>(f<span class="text-pythonStr">'Haz dicho: {text}'</span>)
+            <span class="text-pythonKW interactive-token" data-term="return">return</span> <span class="interactive-token" data-term="text_var">text</span>.<span class="interactive-token" data-term="lower">lower</span>()
+        <span class="text-pythonKW interactive-token" data-term="except">except</span> <span class="interactive-token" data-term="sr">sr</span>.<span class="interactive-token" data-term="UnknownValueError">UnknownValueError</span>:
+            <span class="text-pythonFunc interactive-token" data-term="print">print</span>(<span class="text-pythonStr">"No se detecto..."</span>)
+                    </code></pre>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="glass p-6 rounded-xl">
+                        <h4 class="text-xl font-bold text-accent mb-2">👂 Escucha Activa</h4>
+                        <p class="text-slate-300 text-sm mb-2">Usamos el micrófono como "fuente". Pasa el mouse sobre <code>with</code> o <code>listen</code> para entender cómo se gestiona el audio.</p>
+                        <div class="h-1 w-full bg-slate-700 rounded-full overflow-hidden">
+                            <div class="h-full bg-green-500 w-1/2 animate-pulse"></div>
+                        </div>
+                    </div>
+
+                    <div class="glass p-6 rounded-xl">
+                        <h4 class="text-xl font-bold text-accent mb-2">🧠 Traducción (Google API)</h4>
+                        <p class="text-slate-300 text-sm">
+                            El bloque <code>try/except</code> es nuestra red de seguridad. Hoverea sobre <code>recognize_google</code> para ver la magia.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="reveal mb-24">
+            <div class="flex items-center gap-3 mb-8">
+                <span class="bg-blue-900 text-blue-200 px-3 py-1 rounded-full text-sm font-mono">Paso Final</span>
+                <h3 class="text-2xl font-bold">La Toma de Decisiones (If/Elif)</h3>
+            </div>
+
+            <div class="relative">
+                <div class="absolute left-8 top-0 bottom-0 w-0.5 bg-slate-700 md:block hidden"></div>
+
+                <div class="relative ml-0 md:ml-20 mb-10 group">
+                    <div class="absolute -left-24 top-6 w-4 h-4 bg-accent rounded-full border-4 border-dark md:block hidden z-10"></div>
+                    <div class="bg-slate-800 p-6 rounded-xl border-l-4 border-yellow-500 hover:translate-x-2 transition-transform duration-300">
+                        <h4 class="text-lg font-bold text-yellow-500 mb-2">1. Detectar Palabra Clave</h4>
+                        <div class="code-block p-3 mb-2 bg-black/30 text-xs">
+                            <code class="text-slate-300"><span class="text-pythonKW interactive-token" data-term="if">if</span> <span class="text-pythonStr">'amazon'</span> <span class="text-pythonKW interactive-token" data-term="in">in</span> <span class="interactive-token" data-term="ear">ear</span>:</code>
+                        </div>
+                        <p class="text-slate-400 text-sm">
+                            Revisa si "amazon" está en lo que escuchó (variable 'ear').
+                        </p>
+                    </div>
+                </div>
+
+                <div class="relative ml-0 md:ml-20 mb-10 group">
+                    <div class="absolute -left-24 top-6 w-4 h-4 bg-purple-500 rounded-full border-4 border-dark md:block hidden z-10"></div>
+                    <div class="bg-slate-800 p-6 rounded-xl border-l-4 border-purple-500 hover:translate-x-2 transition-transform duration-300">
+                        <h4 class="text-lg font-bold text-purple-500 mb-2">2. Preguntar y Escuchar de nuevo</h4>
+                        <div class="code-block p-3 mb-2 bg-black/30 text-xs">
+                            <code class="text-slate-300"><span class="interactive-token" data-term="engine">engine</span>.<span class="interactive-token" data-term="say">say</span>(<span class="text-pythonStr">'Que quieres buscar...'</span>)<br><span class="interactive-token" data-term="engine">engine</span>.<span class="interactive-token" data-term="runAndWait">runAndWait</span>()<br><span class="interactive-token" data-term="search_var">search</span> = <span class="interactive-token" data-term="talk">talk</span>()</code>
+                        </div>
+                        <p class="text-slate-400 text-sm">
+                            El asistente nos habla y espera.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="relative ml-0 md:ml-20 mb-10 group">
+                    <div class="absolute -left-24 top-6 w-4 h-4 bg-green-500 rounded-full border-4 border-dark md:block hidden z-10"></div>
+                    <div class="bg-slate-800 p-6 rounded-xl border-l-4 border-green-500 hover:translate-x-2 transition-transform duration-300">
+                        <h4 class="text-lg font-bold text-green-500 mb-2">3. Ejecutar la Acción</h4>
+                        <div class="code-block p-3 mb-2 bg-black/30 text-xs">
+                            <code class="text-slate-300"><span class="interactive-token" data-term="webbrowser">webbrowser</span>.<span class="interactive-token" data-term="open">open</span>(f<span class="text-pythonStr">'https://www.amazon.es/s?k={search}'</span>)</code>
+                        </div>
+                        <p class="text-slate-400 text-sm">
+                            Abre la URL con tu búsqueda.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="text-center py-20 border-t border-slate-800">
+            <h2 class="text-3xl font-bold mb-6">¡Y así funciona!</h2>
+            <div class="flex flex-col md:flex-row justify-center gap-6 mb-10">
+                <div class="bg-slate-900 p-4 rounded-lg w-full md:w-64">
+                    <i class="fas fa-bug text-red-400 text-2xl mb-2"></i>
+                    <h3 class="font-bold text-white">Debugging</h3>
+                    <p class="text-slate-500 text-sm">Si falla, revisa tu micrófono y conexión a internet.</p>
+                </div>
+            </div>
+            <a href="/sp.py" class="mt-10 inline-block px-8 py-3 rounded-full bg-accent text-dark font-bold hover:bg-white hover:text-accent transition-all duration-300 shadow-lg shadow-emerald-500/30">
+                Descargar código <i class="fa-solid fa-download ml-2"></i>
+            </a>
+        </footer>
+
+    </main>
+
+    <script>
+        const dictionary = {
+            "import": {
+                title: "Import",
+                desc: "Es como traer una caja de herramientas de fuera. Le dice a Python: 'Necesito usar funciones que no vienen por defecto, tráeme este paquete'.",
+                type: "Palabra Reservada"
+            },
+            "as": {
+                title: "As (Alias)",
+                desc: "Sirve para ponerle un apodo a una librería. En lugar de escribir 'speech_recognition' todo el tiempo, escribimos 'sr' que es más corto.",
+                type: "Palabra Reservada"
+            },
+            "speech_recognition": {
+                title: "Speech Recognition",
+                desc: "Es una librería externa famosa. Sirve para convertir audio (voz humana) en texto escrito. Es el 'oído' de tu programa.",
+                type: "Librería"
+            },
+            "webbrowser": {
+                title: "Webbrowser",
+                desc: "Es una librería que ya viene con Python. Sirve para controlar tu Chrome, Firefox o Edge y abrir páginas web automáticamente.",
+                type: "Módulo Estándar"
+            },
+            "pyttsx3": {
+                title: "Pyttsx3",
+                desc: "Significa 'Python Text-to-Speech version 3'. Sirve para que la computadora hable. Convierte texto escrito en voz audible.",
+                type: "Librería"
+            },
+            "sr": {
+                title: "sr",
+                desc: "Es el apodo corto que le pusimos a 'speech_recognition'. Lo usamos para acceder a las funciones de esa librería.",
+                type: "Alias"
+            },
+            "recognizer": {
+                title: "Variable Recognizer",
+                desc: "Es una instancia (objeto) del reconocedor. Imagínalo como contratar a un traductor específico y sentarlo en una silla listo para trabajar.",
+                type: "Objeto / Variable"
+            },
+            "Recognizer": {
+                title: "Clase Recognizer()",
+                desc: "Es el plano de construcción para crear reconocedores. Crea la herramienta principal que procesará el audio.",
+                type: "Clase"
+            },
+            "engine": {
+                title: "Variable Engine",
+                desc: "Es el 'motor' de voz. Controla la velocidad, el volumen y el tipo de voz que usará tu computadora para hablar.",
+                type: "Objeto / Variable"
+            },
+            "init": {
+                title: "init()",
+                desc: "Función de inicialización. Arranca el motor de voz para que esté listo para recibir comandos.",
+                type: "Método"
+            },
+            "print": {
+                title: "Print",
+                desc: "Muestra mensajes en la consola (la pantalla negra). Sirve para que tú, como programador, sepas qué está pasando.",
+                type: "Función Built-in"
+            },
+            "def": {
+                title: "Def (Definir)",
+                desc: "Sirve para crear tus propias funciones. Es como crear un miniprograma dentro de tu código que puedes reusar.",
+                type: "Palabra Reservada"
+            },
+            "talk": {
+                title: "Función talk()",
+                desc: "Esta es tu función personalizada. Agrupa toda la lógica de escuchar, traducir y devolver el texto.",
+                type: "Función de Usuario"
+            },
+            "mic": {
+                title: "Variable Mic",
+                desc: "Representa tu micrófono físico. Python se conecta al hardware a través de esta variable.",
+                type: "Objeto"
+            },
+            "Microphone": {
+                title: "Clase Microphone()",
+                desc: "Detecta y configura el micrófono predeterminado de tu sistema operativo.",
+                type: "Clase"
+            },
+            "while": {
+                title: "While (Mientras)",
+                desc: "Es un bucle. Todo lo que esté dentro se repetirá infinitamente mientras la condición sea verdadera (True).",
+                type: "Bucle"
+            },
+            "True": {
+                title: "True (Verdadero)",
+                desc: "Valor booleano. En 'while True', hace que el bucle sea infinito y nunca se detenga (a menos que lo forcemos).",
+                type: "Booleano"
+            },
+            "with": {
+                title: "With (Gestor de Contexto)",
+                desc: "Es una forma segura de abrir recursos. Sirve para abrir el micrófono y asegurarse de que se cierre correctamente si hay un error.",
+                type: "Palabra Reservada"
+            },
+            "source": {
+                title: "Source (Fuente)",
+                desc: "En este contexto, el micrófono activo se convierte en la 'fuente' de datos de audio.",
+                type: "Variable de Contexto"
+            },
+            "audio": {
+                title: "Variable Audio",
+                desc: "Guarda la grabación temporal de lo que acabas de decir. Son los datos crudos del sonido.",
+                type: "Variable"
+            },
+            "listen": {
+                title: "listen()",
+                desc: "Escucha el sonido ambiente y espera a que hables. Detecta automáticamente cuando dejas de hablar.",
+                type: "Método"
+            },
+            "try": {
+                title: "Try (Intentar)",
+                desc: "Intenta ejecutar un código peligroso. Si falla (ej. no entendió lo que dijiste), salta al bloque 'except' en lugar de romper el programa.",
+                type: "Manejo de Errores"
+            },
+            "recognize_google": {
+                title: "Recognize Google",
+                desc: "Envía tu audio a Google, ellos lo procesan con su IA y te devuelven el texto. Requiere internet.",
+                type: "Método de API"
+            },
+            "text_var": {
+                title: "Variable Text",
+                desc: "Aquí se guarda la frase final ya traducida a texto. Ejemplo: 'quiero escuchar música'.",
+                type: "Variable"
+            },
+            "return": {
+                title: "Return",
+                desc: "Envía el resultado fuera de la función. Devuelve el texto procesado a quien llamó a la función.",
+                type: "Palabra Reservada"
+            },
+            "lower": {
+                title: "lower()",
+                desc: "Convierte todo el texto a minúsculas. Ayuda a comparar mejor (para que 'Amazon' sea igual a 'amazon').",
+                type: "Método de String"
+            },
+            "except": {
+                title: "Except",
+                desc: "Si algo salió mal en el 'try', el código salta aquí. Sirve para manejar errores elegantemente.",
+                type: "Manejo de Errores"
+            },
+            "UnknownValueError": {
+                title: "Unknown Value Error",
+                desc: "El error específico que ocurre cuando el reconocedor oyó ruido pero no pudo entender ninguna palabra.",
+                type: "Excepción"
+            },
+            "if": {
+                title: "If (Si...)",
+                desc: "Condicional. Si la condición se cumple, ejecuta el código de adentro.",
+                type: "Control de Flujo"
+            },
+            "in": {
+                title: "In",
+                desc: "Operador de pertenencia. Verifica si una palabra (ej. 'amazon') existe dentro de una frase larga.",
+                type: "Operador"
+            },
+            "ear": {
+                title: "Variable Ear",
+                desc: "Es donde guardamos lo que la función 'talk()' escuchó y retornó.",
+                type: "Variable"
+            },
+            "say": {
+                title: "say()",
+                desc: "Pone texto en la cola de reproducción para ser hablado por el asistente.",
+                type: "Método"
+            },
+            "runAndWait": {
+                title: "runAndWait()",
+                desc: "Ordena al motor que hable todo lo que está en cola y detiene el programa hasta que termine de hablar.",
+                type: "Método"
+            },
+            "search_var": {
+                title: "Variable Search",
+                desc: "Guarda lo que respondiste cuando el asistente te preguntó '¿Qué quieres buscar?'.",
+                type: "Variable"
+            },
+            "open": {
+                title: "open()",
+                desc: "Comando del navegador para abrir una nueva pestaña con la dirección URL que le des.",
+                type: "Método"
+            }
+        };
+
+        const tooltip = document.getElementById('code-tooltip');
+        const titleEl = document.getElementById('tooltip-title');
+        const descEl = document.getElementById('tooltip-desc');
+        const typeEl = document.getElementById('tooltip-type');
+        const tokens = document.querySelectorAll('.interactive-token');
+        
+        let hideTimeout;
+
+        tokens.forEach(token => {
+            token.addEventListener('mouseenter', (e) => {
+                if (hideTimeout) {
+                    clearTimeout(hideTimeout);
+                    hideTimeout = null;
+                }
+
+                const term = token.getAttribute('data-term');
+                const info = dictionary[term];
+
+                if (info) {
+                    titleEl.textContent = info.title;
+                    descEl.textContent = info.desc;
+                    typeEl.textContent = info.type;
+
+                    tooltip.classList.remove('hidden');
+                    requestAnimationFrame(() => {
+                        tooltip.classList.remove('opacity-0', 'scale-95');
+                        tooltip.classList.add('opacity-100', 'scale-100');
+                    });
+                }
+            });
+
+            token.addEventListener('mousemove', (e) => {
+                const x = e.clientX + 15; 
+                const y = e.clientY + 15;
+                
+                const tooltipRect = tooltip.getBoundingClientRect();
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+
+                let finalX = x;
+                let finalY = y;
+
+                if (x + tooltipRect.width > viewportWidth) {
+                    finalX = e.clientX - tooltipRect.width - 10;
+                }
+                
+                if (y + tooltipRect.height > viewportHeight) {
+                    finalY = e.clientY - tooltipRect.height - 10;
+                }
+
+                tooltip.style.left = `${finalX}px`;
+                tooltip.style.top = `${finalY}px`;
+            });
+
+            token.addEventListener('mouseleave', () => {
+                tooltip.classList.remove('opacity-100', 'scale-100');
+                tooltip.classList.add('opacity-0', 'scale-95');
+                
+                hideTimeout = setTimeout(() => {
+                    tooltip.classList.add('hidden');
+                }, 200);
+            });
+        });
+
+        function reveal() {
+            var reveals = document.querySelectorAll(".reveal");
+            for (var i = 0; i < reveals.length; i++) {
+                var windowHeight = window.innerHeight;
+                var elementTop = reveals[i].getBoundingClientRect().top;
+                var elementVisible = 150;
+                if (elementTop < windowHeight - elementVisible) {
+                    reveals[i].classList.add("active");
+                }
+            }
+        }
+        window.addEventListener("scroll", reveal);
+        reveal();
+    </script>
+</body>
+</html>

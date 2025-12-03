@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Física y Python: Resolviendo MRUA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0f172a',
+                        card: '#1e293b',
+                        accent: '#10b981',
+                        code: '#282c34',
+                        pythonKW: '#c678dd', 
+                        pythonStr: '#98c379',
+                        pythonFunc: '#61afef',
+                        pythonComment: '#5c6370',
+                        pythonNum: '#d19a66'
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: 0, transform: 'translateY(10px)' },
+                            '100%': { opacity: 1, transform: 'translateY(0)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+        
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #10b981; border-radius: 5px; }
+
+        .code-block {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background-color: #282c34;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease-out;
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .gradient-text {
+            background: linear-gradient(to right, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .interactive-token {
+            cursor: help;
+            border-bottom: 1px dotted rgba(255, 255, 255, 0.4);
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .interactive-token:hover {
+            background-color: rgba(16, 185, 129, 0.2);
+            border-bottom: 1px solid #10b981;
+            border-radius: 3px;
+            color: white;
+        }
+
+        #code-tooltip {
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="code-tooltip" class="fixed opacity-0 z-50 bg-slate-900 border border-slate-600 shadow-2xl rounded-lg p-4 max-w-sm transform scale-95 hidden pointer-events-none">
+        <h4 id="tooltip-title" class="text-accent font-bold text-lg mb-1 border-b border-slate-700 pb-1">Title</h4>
+        <p id="tooltip-desc" class="text-slate-300 text-sm leading-relaxed mb-2">Description.</p>
+        <div class="flex gap-2">
+            <span class="text-xs text-slate-800 font-bold bg-accent px-2 py-0.5 rounded">Tipo: <span id="tooltip-type">Función</span></span>
+            <span id="tooltip-tag" class="text-xs text-blue-200 bg-blue-900/50 px-2 py-0.5 rounded border border-blue-800 hidden">Matemáticas</span>
+        </div>
+    </div>
+
+    <header class="min-h-screen flex flex-col justify-center items-center text-center relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 opacity-10">
+            <i class="fas fa-square-root-alt absolute top-1/4 left-1/4 text-9xl text-white animate-float"></i>
+            <i class="fas fa-superscript absolute bottom-1/3 right-1/4 text-8xl text-accent animate-float" style="animation-delay: 1s;"></i>
+            <i class="fas fa-atom absolute top-10 right-10 text-9xl text-blue-500 animate-float" style="animation-delay: 2s;"></i>
+        </div>
+
+        <div class="z-10 px-4">
+            <div class="mb-6 inline-block p-4 rounded-full bg-slate-800 border border-slate-700 animate-float">
+                <i class="fas fa-calculator text-4xl text-accent"></i>
+            </div>
+            <h1 class="text-5xl md:text-7xl font-bold mb-4">Física con <span class="gradient-text">Python & SymPy</span></h1>
+            <p class="text-xl md:text-2xl text-slate-400 max-w-2xl mx-auto">
+                Donde la programación se encuentra con el álgebra. <br>
+                <span class="text-sm text-accent bg-accent/10 px-3 py-1 rounded-full mt-4 inline-block border border-accent/20">
+                    <i class="fas fa-mouse-pointer mr-2"></i>Explora los términos matemáticos y de código
+                </span>
+            </p>
+            <a href="#start" class="mt-10 inline-block px-8 py-3 rounded-full bg-accent text-dark font-bold hover:bg-white hover:text-accent transition-all duration-300 shadow-lg shadow-emerald-500/30">
+                Analizar Ecuación <i class="fas fa-arrow-down ml-2"></i>
+            </a>
+        </div>
+    </header>
+
+    <main id="start" class="container mx-auto px-4 py-20">
+
+        <section class="mb-24 reveal">
+            <div class="glass p-8 rounded-2xl border-l-4 border-accent">
+                <h2 class="text-3xl font-bold mb-4 text-white">El Objetivo</h2>
+                <p class="text-slate-300 text-lg">
+                    A diferencia de una calculadora normal que solo trabaja con números (<code>2 + 2 = 4</code>), este programa utiliza <strong>Álgebra Simbólica</strong>. 
+                    <br><br>
+                    Le damos una ecuación física de movimiento (MRUA), le decimos qué datos conocemos y le pedimos que "despeje" la variable que falta, tal como lo harías en papel con lápiz.
+                </p>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-24 items-center reveal">
+            <div>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="bg-slate-700 text-slate-200 px-3 py-1 rounded-full text-sm font-mono border border-slate-600">Fase 1</span>
+                    <h3 class="text-2xl font-bold text-white">Importar el Cerebro Matemático</h3>
+                </div>
+                <div class="bg-slate-800 p-5 rounded-xl border border-slate-700">
+                    <p class="text-slate-400">
+                        No usamos Python básico para esto. Traemos a <strong>SymPy</strong>, una librería científica capaz de entender que <code class="text-accent">x + x = 2x</code>.
+                        <br><br>
+                        Pasa el cursor sobre <code>symbols</code>, <code>Eq</code> y <code>solve</code> para ver sus superpoderes matemáticos.
+                    </p>
+                </div>
+            </div>
+
+            <div class="code-block p-6 text-sm shadow-2xl relative">
+                <div class="absolute top-2 right-2 text-xs text-slate-500">Python</div>
+                <pre><code class="text-slate-300">
+<span class="text-pythonKW interactive-token" data-term="from">from</span> <span class="interactive-token" data-term="sympy">sympy</span> <span class="text-pythonKW interactive-token" data-term="import">import</span> <span class="interactive-token" data-term="symbols">symbols</span>, <span class="interactive-token" data-term="Eq">Eq</span>, <span class="interactive-token" data-term="solve">solve</span>
+                </code></pre>
+            </div>
+        </section>
+
+        <section class="mb-24 reveal">
+            <div class="text-center mb-10">
+                <span class="bg-accent text-dark px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider">La Lógica</span>
+                <h3 class="text-4xl font-bold mt-4 text-white">La Función <code class="text-accent">resolver_mrua</code></h3>
+            </div>
+
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+
+                <div class="xl:col-span-2 code-block p-6 text-sm shadow-2xl overflow-x-auto">
+                    <pre><code class="text-slate-300">
+<span class="text-pythonKW interactive-token" data-term="def">def</span> <span class="text-pythonFunc interactive-token" data-term="resolver_mrua">resolver_mrua</span>(<span class="interactive-token" data-term="arg1">arg1_dicc</span>, <span class="interactive-token" data-term="arg2">arg2_variable_a_buscar</span>):
+    
+    <span class="text-pythonComment"># Definimos variables simbólicas</span>
+    <span class="interactive-token" data-term="var_x">x</span>, <span class="interactive-token" data-term="var_x0">x0</span>, <span class="interactive-token" data-term="var_v">v</span>, <span class="interactive-token" data-term="var_t">t</span>, <span class="interactive-token" data-term="var_a">a</span> = <span class="interactive-token" data-term="symbols">symbols</span>(<span class="pythonStr">'x x0 v t a'</span>)
+
+    <span class="text-pythonComment"># Declaramos la ecuación: x = x0 + vt + 0.5at^2</span>
+    <span class="interactive-token" data-term="EcuacionPosicion">EcuacionPosicion</span> = <span class="interactive-token" data-term="Eq">Eq</span>(<span class="interactive-token" data-term="var_x0">x0</span> + <span class="interactive-token" data-term="var_v">v</span> * <span class="interactive-token" data-term="var_t">t</span> + <span class="pythonNum">0.5</span> * <span class="interactive-token" data-term="var_a">a</span> * <span class="interactive-token" data-term="var_t">t</span>**<span class="pythonNum">2</span> - <span class="interactive-token" data-term="var_x">x</span>, <span class="pythonNum">0</span>)
+
+    <span class="text-pythonComment"># Despeje algebraico</span>
+    <span class="interactive-token" data-term="solucion_simbolica">solucion_simbolica</span> = <span class="interactive-token" data-term="solve">solve</span>(<span class="interactive-token" data-term="EcuacionPosicion">EcuacionPosicion</span>, <span class="interactive-token" data-term="arg2">arg2_variable_a_buscar</span>)[<span class="pythonNum">0</span>]
+
+    <span class="text-pythonComment"># Sustitución numérica</span>
+    <span class="interactive-token" data-term="resultado">resultado</span> = <span class="interactive-token" data-term="solucion_simbolica">solucion_simbolica</span>.<span class="interactive-token" data-term="subs">subs</span>(<span class="interactive-token" data-term="arg1">arg1_dicc</span>)
+
+    <span class="text-pythonKW interactive-token" data-term="return">return</span> <span class="interactive-token" data-term="resultado">resultado</span>
+                    </code></pre>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="glass p-6 rounded-xl border-l-4 border-blue-500">
+                        <h4 class="text-xl font-bold text-blue-400 mb-2"><i class="fas fa-cube mr-2"></i>Abstracción</h4>
+                        <p class="text-slate-300 text-sm">
+                            Aquí definimos los símbolos. Para Python <code>x</code> no vale 5 ni 10, vale "x". Es una entidad abstracta lista para ser manipulada.
+                        </p>
+                    </div>
+
+                    <div class="glass p-6 rounded-xl border-l-4 border-purple-500">
+                        <h4 class="text-xl font-bold text-purple-400 mb-2"><i class="fas fa-magic mr-2"></i>El Despeje</h4>
+                        <p class="text-slate-300 text-sm">
+                            La magia ocurre en <code>solve</code>. No importa si le pides hallar el tiempo, la aceleración o la posición. SymPy reordenará la ecuación automáticamente por ti.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-24 reveal" id="translation-breakdown">
+            <div class="glass p-8 rounded-2xl border-l-4 border-pink-500">
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="bg-pink-900/50 text-pink-200 px-3 py-1 rounded-full text-sm font-mono border border-pink-700">Deep Dive</span>
+                    <h2 class="text-3xl font-bold text-white">De la Pizarra al Editor</h2>
+                </div>
+                
+                <p class="text-slate-300 mb-8 text-lg">
+                    Para que Python entienda la física, debemos "traducir" el idioma matemático a sintaxis de código.
+                    Mira cómo cambia cada parte de la ecuación:
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="bg-slate-800/50 p-6 rounded-xl border border-slate-600 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-2 opacity-20 group-hover:opacity-100 transition-opacity">
+                            <i class="fas fa-chalkboard text-4xl text-white"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-accent mb-4 border-b border-slate-700 pb-2">
+                            <i class="fas fa-square-root-alt mr-2"></i>Matemáticas
+                        </h3>
+                        
+                        <div class="text-2xl text-white font-serif mb-6 text-center py-6 bg-slate-900 rounded-lg shadow-inner">
+                            $$x = x_0 + v t + \frac{1}{2} a t^2$$
+                        </div>
+                        
+                        <ul class="space-y-3 text-sm text-slate-400">
+                            <li class="flex items-center"><i class="fas fa-check text-green-500 mr-3 w-4"></i><span>Multiplicación implícita ($vt$)</span></li>
+                            <li class="flex items-center"><i class="fas fa-check text-green-500 mr-3 w-4"></i><span>Potencias con superíndice ($t^2$)</span></li>
+                            <li class="flex items-center"><i class="fas fa-check text-green-500 mr-3 w-4"></i><span>Igualdad directa ($=$)</span></li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-slate-800/50 p-6 rounded-xl border border-slate-600 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-2 opacity-20 group-hover:opacity-100 transition-opacity">
+                            <i class="fas fa-laptop-code text-4xl text-blue-400"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-blue-400 mb-4 border-b border-slate-700 pb-2">
+                            <i class="fas fa-code mr-2"></i>Python (SymPy)
+                        </h3>
+                        
+                        <div class="text-sm font-mono text-slate-300 mb-6 p-6 bg-slate-900 rounded-lg shadow-inner break-all">
+                            Eq(x0 + v<span class="text-pink-400 font-bold">*</span>t + 0.5<span class="text-pink-400 font-bold">*</span>a<span class="text-pink-400 font-bold">*</span>t<span class="text-pink-400 font-bold">**</span>2 - x, 0)
+                        </div>
+                        
+                        <ul class="space-y-3 text-sm text-slate-400">
+                            <li class="flex items-center"><i class="fas fa-arrow-right text-blue-400 mr-3 w-4"></i><span>Uso explícito de <code>*</code> para multiplicar</span></li>
+                            <li class="flex items-center"><i class="fas fa-arrow-right text-blue-400 mr-3 w-4"></i><span>Operador <code>**</code> para elevar potencia</span></li>
+                            <li class="flex items-center"><i class="fas fa-arrow-right text-blue-400 mr-3 w-4"></i><span>Formato <code>Eq(lado_izq - lado_der, 0)</code></span></li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="mt-8 bg-blue-900/20 p-5 rounded-lg border-l-4 border-blue-500 text-sm text-blue-200 flex gap-4 items-start">
+                    <i class="fas fa-lightbulb text-yellow-400 text-xl mt-1"></i>
+                    <div>
+                        <strong class="block text-lg mb-1 text-white">¿Por qué " - x, 0"?</strong>
+                        En SymPy, las ecuaciones se expresan mejor como una resta igualada a cero. 
+                        Matemáticamente, si $A = B$, entonces $A - B = 0$. <br>
+                        El código pasa la $x$ (posición final) restando al otro lado para cumplir con este formato.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="reveal mb-24">
+            <div class="flex items-center gap-3 mb-8">
+                <span class="bg-slate-700 text-slate-200 px-3 py-1 rounded-full text-sm font-mono border border-slate-600">Fase Final</span>
+                <h3 class="text-2xl font-bold text-white">La Prueba Numérica</h3>
+            </div>
+
+            <div class="relative">
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                    <div class="bg-slate-800 p-6 rounded-xl border-l-4 border-yellow-500 hover:translate-y-[-5px] transition-transform duration-300">
+                        <h4 class="text-lg font-bold text-yellow-400 mb-2">1. Definir el Contexto</h4>
+                        <div class="code-block p-3 mb-2 bg-black/30 text-xs">
+                            <code class="text-slate-300"><span class="interactive-token" data-term="datos">datos</span> = {<span class="interactive-token" data-term="var_x0">x0</span>: <span class="pythonNum">0</span>, <span class="interactive-token" data-term="var_v">v</span>: <span class="pythonNum">10</span>, <span class="interactive-token" data-term="var_a">a</span>: <span class="pythonNum">2</span>, <span class="interactive-token" data-term="var_t">t</span>: <span class="pythonNum">5</span>}</code>
+                        </div>
+                        <p class="text-slate-400 text-sm">
+                            Creamos un diccionario que mapea los <em>Símbolos</em> a <em>Números Reales</em>.
+                            "La aceleración es 2", "El tiempo es 5".
+                        </p>
+                    </div>
+
+                    <div class="bg-slate-800 p-6 rounded-xl border-l-4 border-accent hover:translate-y-[-5px] transition-transform duration-300">
+                        <h4 class="text-lg font-bold text-accent mb-2">2. Obtener Respuesta</h4>
+                        <div class="code-block p-3 mb-2 bg-black/30 text-xs">
+                            <code class="text-slate-300"><span class="interactive-token" data-term="valor_final">valor</span> = <span class="text-pythonFunc">resolver_mrua</span>(<span class="interactive-token" data-term="datos">datos</span>, <span class="interactive-token" data-term="var_x">x</span>)</code>
+                        </div>
+                        <p class="text-slate-400 text-sm">
+                            Llamamos a la función enviando los datos y diciendo: "Quiero que encuentres <code>x</code> (Posición Final)".
+                        </p>
+                    </div>
+                 </div>
+            </div>
+        </section>
+
+        <footer class="text-center py-20 border-t border-slate-800">
+            <h2 class="text-3xl font-bold mb-6">¡Y así funciona!</h2>
+            <a href="/md.py" class="mt-10 inline-block px-8 py-3 rounded-full bg-accent text-dark font-bold hover:bg-white hover:text-accent transition-all duration-300 shadow-lg shadow-emerald-500/30">
+                Descargar código <i class="fa-solid fa-download ml-2"></i>
+            </a>
+        </footer>
+
+    </main>
+
+    <script>
+        const dictionary = {
+            "from": {
+                title: "From ... Import",
+                desc: "Indica que solo queremos partes específicas de una librería, no toda la librería. Ahorra memoria.",
+                type: "Palabra Reservada",
+                tag: "Python"
+            },
+            "sympy": {
+                title: "SymPy Library",
+                desc: "Biblioteca de Python para matemática simbólica. Permite trabajar con álgebra exacta en lugar de aproximaciones numéricas.",
+                type: "Librería",
+                tag: "Matemáticas"
+            },
+            "symbols": {
+                title: "symbols()",
+                desc: "Crea variables matemáticas abstractas. A diferencia de una variable normal (x=5), estas variables no tienen valor, son entidades algebraicas.",
+                type: "Función Constructor",
+                tag: "SymPy"
+            },
+            "Eq": {
+                title: "Clase Eq (Equation)",
+                desc: "Representa una igualdad matemática. En SymPy, `Eq(a, b)` significa matemáticamente 'a = b'.",
+                type: "Clase",
+                tag: "SymPy"
+            },
+            "solve": {
+                title: "solve()",
+                desc: "El motor algebraico. Toma una ecuación y una variable objetivo, y realiza los pasos algebraicos para despejar esa variable.",
+                type: "Función",
+                tag: "Matemáticas"
+            },
+            "def": {
+                title: "Definición de Función",
+                desc: "Inicia la creación de una nueva función personalizada que encapsula nuestra lógica física.",
+                type: "Palabra Reservada",
+                tag: "Python"
+            },
+            "resolver_mrua": {
+                title: "Función Personalizada",
+                desc: "El nombre que le dimos a nuestra 'máquina de resolver'. Recibe datos y qué buscar, y devuelve el resultado.",
+                type: "Identificador",
+                tag: "Python"
+            },
+            "arg1": {
+                title: "Diccionario de Datos",
+                desc: "Argumento que contendrá los valores conocidos (ej: {t: 5, a: 9.8}).",
+                type: "Argumento",
+                tag: "Estructura de Datos"
+            },
+            "arg2": {
+                title: "Variable Objetivo",
+                desc: "El símbolo que queremos despejar. Puede ser 'x', 't', 'a', etc.",
+                type: "Argumento",
+                tag: "Símbolo"
+            },
+            "var_x": {
+                title: "Posición Final (x)",
+                desc: "Variable cinemática. Representa dónde termina el objeto después del movimiento.",
+                type: "Variable Física",
+                tag: "Física"
+            },
+            "var_x0": {
+                title: "Posición Inicial (x₀)",
+                desc: "Variable cinemática. Representa dónde empieza el objeto (ej. 0 metros).",
+                type: "Variable Física",
+                tag: "Física"
+            },
+            "var_v": {
+                title: "Velocidad Inicial (v)",
+                desc: "La rapidez con la que comienza el movimiento (m/s).",
+                type: "Variable Física",
+                tag: "Física"
+            },
+            "var_t": {
+                title: "Tiempo (t)",
+                desc: "La duración del evento físico en segundos.",
+                type: "Variable Física",
+                tag: "Física"
+            },
+            "var_a": {
+                title: "Aceleración (a)",
+                desc: "La tasa de cambio de la velocidad (m/s²). Si es constante, es un MRUA.",
+                type: "Variable Física",
+                tag: "Física"
+            },
+            "EcuacionPosicion": {
+                title: "Ecuación de Movimiento",
+                desc: "La fórmula maestra del MRUA: Posición = Posición Inicial + Vel*Tiempo + 0.5*Acel*Tiempo².",
+                type: "Objeto Ecucación",
+                tag: "Física/Math"
+            },
+            "solucion_simbolica": {
+                title: "Solución Algebraica",
+                desc: "El resultado del despeje pero AÚN EN SÍMBOLOS. Ejemplo: si despejas aceleración, esto contendría `2*(x-x0-vt)/t^2`.",
+                type: "Expresión",
+                tag: "Álgebra"
+            },
+            "subs": {
+                title: "Método subs()",
+                desc: "Sustitución. Toma la expresión algebraica y reemplaza las letras por los números del diccionario.",
+                type: "Método",
+                tag: "SymPy"
+            },
+            "resultado": {
+                title: "Valor Final",
+                desc: "El número resultante después de sustituir y calcular.",
+                type: "Float/Number",
+                tag: "Python"
+            },
+            "return": {
+                title: "Return",
+                desc: "Devuelve el resultado calculado a la parte del código que llamó a la función.",
+                type: "Palabra Reservada",
+                tag: "Python"
+            },
+            "datos": {
+                title: "Diccionario (Dict)",
+                desc: "Estructura de datos clave-valor que contiene nuestro 'problema' físico específico.",
+                type: "Diccionario",
+                tag: "Python"
+            },
+            "valor_final": {
+                title: "Resultado Impreso",
+                desc: "La variable donde guardamos el resultado final para mostrarlo al usuario.",
+                type: "Variable",
+                tag: "Python"
+            }
+        };
+
+        const tooltip = document.getElementById('code-tooltip');
+        const titleEl = document.getElementById('tooltip-title');
+        const descEl = document.getElementById('tooltip-desc');
+        const typeEl = document.getElementById('tooltip-type');
+        const tagEl = document.getElementById('tooltip-tag');
+        const tokens = document.querySelectorAll('.interactive-token');
+        
+        let hideTimeout;
+
+        tokens.forEach(token => {
+            token.addEventListener('mouseenter', (e) => {
+                if (hideTimeout) {
+                    clearTimeout(hideTimeout);
+                    hideTimeout = null;
+                }
+
+                const term = token.getAttribute('data-term');
+                const info = dictionary[term];
+
+                if (info) {
+                    titleEl.textContent = info.title;
+                    descEl.textContent = info.desc;
+                    typeEl.textContent = info.type;
+                    
+                    if(info.tag) {
+                        tagEl.textContent = info.tag;
+                        tagEl.classList.remove('hidden');
+                        
+                        if(info.tag === "Física" || info.tag === "SymPy") {
+                            tagEl.className = "text-xs text-purple-200 bg-purple-900/50 px-2 py-0.5 rounded border border-purple-800";
+                        } else {
+                            tagEl.className = "text-xs text-blue-200 bg-blue-900/50 px-2 py-0.5 rounded border border-blue-800";
+                        }
+                    } else {
+                        tagEl.classList.add('hidden');
+                    }
+
+                    tooltip.classList.remove('hidden');
+                    requestAnimationFrame(() => {
+                        tooltip.classList.remove('opacity-0', 'scale-95');
+                        tooltip.classList.add('opacity-100', 'scale-100');
+                    });
+                }
+            });
+
+            token.addEventListener('mousemove', (e) => {
+                const x = e.clientX + 15; 
+                const y = e.clientY + 15;
+                
+                const tooltipRect = tooltip.getBoundingClientRect();
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+
+                let finalX = x;
+                let finalY = y;
+
+                if (x + tooltipRect.width > viewportWidth) {
+                    finalX = e.clientX - tooltipRect.width - 10;
+                }
+                
+                if (y + tooltipRect.height > viewportHeight) {
+                    finalY = e.clientY - tooltipRect.height - 10;
+                }
+
+                tooltip.style.left = `${finalX}px`;
+                tooltip.style.top = `${finalY}px`;
+            });
+
+            token.addEventListener('mouseleave', () => {
+                tooltip.classList.remove('opacity-100', 'scale-100');
+                tooltip.classList.add('opacity-0', 'scale-95');
+                
+                hideTimeout = setTimeout(() => {
+                    tooltip.classList.add('hidden');
+                }, 200);
+            });
+        });
+
+        function reveal() {
+            var reveals = document.querySelectorAll(".reveal");
+            for (var i = 0; i < reveals.length; i++) {
+                var windowHeight = window.innerHeight;
+                var elementTop = reveals[i].getBoundingClientRect().top;
+                var elementVisible = 150;
+                if (elementTop < windowHeight - elementVisible) {
+                    reveals[i].classList.add("active");
+                }
+            }
+        }
+        window.addEventListener("scroll", reveal);
+        reveal();
+    </script>
+</body>
+</html>
